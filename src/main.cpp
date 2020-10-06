@@ -19,6 +19,7 @@
 AccelStepper stepper(1, STEP_PIN_C, DIRECTION_PIN_C);
 float newSpeed;
 bool newDataBit = false;
+char commandChar;
 long int steps = 0, newStep;
 void checkSerial();
 void checkRunning();
@@ -57,6 +58,7 @@ void checkSerial()
   if (Serial.available())
   {
     newDataBit = true;
+    commandChar = Serial.read();
     newSpeed = Serial.parseFloat();
     newStep = Serial.parseInt();
     if (newDataBit == true)
