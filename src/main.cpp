@@ -17,6 +17,8 @@
 #define ENABLE_PIN_E 53
 #define SET_ACCELERATION 300.0
 AccelStepper stepper(1, STEP_PIN_C, DIRECTION_PIN_C);
+unsigned long oldTime=0;
+unsigned long now;
 float newSpeed;
 float maxSpeed = 3000.0;
 bool newDataBit, runAllowed = false,adding=false;
@@ -29,6 +31,13 @@ void mainProgram(long currentPositionValue,float maxSpeedValue,long stepValue);
 void addingProgram(long currentPositionValue,float maxSpeedValue,long stepValue);
 void stopMotor();
 void runMotor();
+void sendInfo();
+void isProcessEnd();
+const unsigned long delayTime = 1000;
+unsigned long timer;
+int count = 0;
+bool running = false;
+
 void setup()
 {
   Serial.begin(9600);
@@ -41,6 +50,7 @@ void setup()
 
 void loop()
 {
+  sendInfo();
   checkRunning();
   checkSerial();
 }
@@ -49,6 +59,9 @@ void checkRunning()
   if(!stepper.isRunning() && adding == true){ //İLAVE YAPMAYI BİTİRDİM
     mainProgram(currentPosition,newSpeed,memMainStep);
   }
+
+  isProcessEnd();
+
   if (runAllowed == true) //B VEYA C KOMUTLARI GELMİŞ
   {
     if (stepper.distanceToGo() == 0) //YOLU TAMAMLADIM
@@ -61,7 +74,7 @@ void checkRunning()
       runMotor();
       checkSerial();
     }
-  }  
+  } 
 }
 void checkSerial()
 {
@@ -76,8 +89,8 @@ void checkSerial()
     newSpeed = Serial.parseFloat(); //HizTxt
     mainNewStep = Serial.parseInt(); //ExtraStepAnaTxt
     addedNewStep = Serial.parseInt(); //ExtraStepIlaveTxt
-    Serial.println(addedNewStep);
     memMainStep = mainNewStep + memMainStep;
+    Serial.println(memMainStep);
     if (commandChar == 'B') //ANA PROGRAM
     {
       runAllowed = true;
@@ -129,10 +142,28 @@ void addingProgram(long currentPositionValue,float maxSpeedValue,long stepValue)
 void runMotor(){
   digitalWrite(ENABLE_PIN_C, LOW);
   stepper.run();
+  running = true;
 }
 void stopMotor(){
-  memMainStep = 0;
+  //memMainStep = 0;
   stepper.setCurrentPosition(0);
   digitalWrite(ENABLE_PIN_C, HIGH);
   stepper.stop();
+  running = false;
+  timer = millis() + delayTime;
+}
+void sendInfo(){
+  now = millis();
+  if(now-oldTime > 1000){
+     //Serial.println(stepper.currentPosition());
+     /* Eski zaman değeri yeni zaman değeri ile güncelleniyor */
+     oldTime = now;
+  }
+}
+void isProcessEnd(){
+  if(!stepper.isRunning()){
+      if(millis()>=timer && !stepper.isRunning()){
+          memMainStep = 0;            
+      }         
+  }
 }
