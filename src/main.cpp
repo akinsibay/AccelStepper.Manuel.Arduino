@@ -21,14 +21,14 @@ unsigned long oldTime=0;
 unsigned long now;
 float newSpeed;
 float maxSpeed = 3000.0;
-bool newDataBit, runAllowed = false,adding=false;
+bool newDataBit, runAllowed = false,addingProg=false,mainProg=false;
 char commandChar;
 long currentPosition;
 long int steps = 0, mainNewStep, addedNewStep,memMainStep;
 void checkSerial();
 void checkRunning();
 void mainProgram(long currentPositionValue,float maxSpeedValue,long stepValue);
-void addingProgram(long currentPositionValue,float maxSpeedValue,long stepValue);
+void addingProgProgram(long currentPositionValue,float maxSpeedValue,long stepValue);
 void stopMotor();
 void runMotor();
 void sendInfo();
@@ -56,7 +56,7 @@ void loop()
 }
 void checkRunning()
 {
-  if(!stepper.isRunning() && adding == true){ //İLAVE YAPMAYI BİTİRDİM
+  if(!stepper.isRunning() && addingProg == true){ //İLAVE YAPMAYI BİTİRDİM
     mainProgram(currentPosition,newSpeed,memMainStep);
   }
 
@@ -90,23 +90,24 @@ void checkSerial()
     mainNewStep = Serial.parseInt(); //ExtraStepAnaTxt
     addedNewStep = Serial.parseInt(); //ExtraStepIlaveTxt
     memMainStep = mainNewStep + memMainStep;
-    Serial.println(memMainStep);
     if (commandChar == 'B') //ANA PROGRAM
     {
       runAllowed = true;
-      adding = false; //İLAVE İŞLEMİ YAPMIYORUM
+      addingProg = false; //İLAVE İŞLEMİ YAPMIYORUM
+      mainProg = true;
       mainProgram(stepper.currentPosition(),newSpeed,mainNewStep); //memMainStep
     }
     if (commandChar == 'C') //İLAVE PROGRAM
     {
       runAllowed = true;
       currentPosition = stepper.currentPosition(); //ANA PROGRAMA KALDIĞI YERDEN DEVAM ETSİN DİYE
-      addingProgram(0,maxSpeed,addedNewStep);
-      adding = true; //İLAVE İŞLEMİ YAPIYORUM   
+      addingProgProgram(0,maxSpeed,addedNewStep);
+      addingProg = true; //İLAVE İŞLEMİ YAPIYORUM
+      mainProg = false;   
     }
     if (commandChar == 'D') //DUR
     {
-      runAllowed = false; 
+      runAllowed = false;
       stopMotor();
     }
     newDataBit = false;
@@ -115,9 +116,10 @@ void checkSerial()
 
 void mainProgram(long currentPositionValue,float maxSpeedValue,long stepValue)
 { 
+  mainProg = true;
   if (stepper.distanceToGo() == 0) //YOLUMU TAMAMLADIM
   {
-    adding = false; 
+    addingProg = false; 
     steps = stepValue;
     stepper.setCurrentPosition(currentPositionValue);
     //stepper.setSpeed(0);
@@ -133,7 +135,7 @@ void mainProgram(long currentPositionValue,float maxSpeedValue,long stepValue)
     stepper.moveTo(steps);
   }
 }
-void addingProgram(long currentPositionValue,float maxSpeedValue,long stepValue){
+void addingProgProgram(long currentPositionValue,float maxSpeedValue,long stepValue){
   stepper.setCurrentPosition(currentPositionValue);
   stepper.setMaxSpeed(maxSpeedValue);
   stepper.moveTo(stepValue); //move du
@@ -145,7 +147,6 @@ void runMotor(){
   running = true;
 }
 void stopMotor(){
-  //memMainStep = 0;
   stepper.setCurrentPosition(0);
   digitalWrite(ENABLE_PIN_C, HIGH);
   stepper.stop();
@@ -154,16 +155,23 @@ void stopMotor(){
 }
 void sendInfo(){
   now = millis();
-  if(now-oldTime > 1000){
-     //Serial.println(stepper.currentPosition());
-     /* Eski zaman değeri yeni zaman değeri ile güncelleniyor */
+  if(now-oldTime > 1000){ //saniyede 1
+     Serial.print(stepper.currentPosition());
+     Serial.print(" ");
+     Serial.print(stepper.isRunning());
+     Serial.print(" ");
+     Serial.print(mainProg);
+     Serial.print(" ");
+     Serial.println(addingProg);
      oldTime = now;
   }
 }
 void isProcessEnd(){
   if(!stepper.isRunning()){
       if(millis()>=timer && !stepper.isRunning()){
-          memMainStep = 0;            
+          memMainStep = 0;
+          addingProg = false;
+          mainProg = false;        
       }         
   }
 }
